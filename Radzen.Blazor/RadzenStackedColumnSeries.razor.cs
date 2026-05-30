@@ -129,7 +129,11 @@ namespace Radzen.Blazor
             return Value(Items[index]);
         }
 
-        private IList<IChartSeries> ColumnSeries => Chart?.Series?.Where(series => series is IChartStackedColumnSeries).Cast<IChartSeries>().ToList() ?? new List<IChartSeries>();
+        private ScaleBase ValueScale => GetValueScale();
+
+        private RadzenValueAxis ValueAxis => GetValueAxis();
+
+        private IList<IChartSeries> ColumnSeries => Chart?.Series?.Where(series => series is IChartStackedColumnSeries && series.YAxis == YAxis).Cast<IChartSeries>().ToList() ?? new List<IChartSeries>();
 
         private IList<IChartSeries> VisibleColumnSeries => ColumnSeries.Where(series => series.Visible).ToList();
 
@@ -208,11 +212,11 @@ namespace Radzen.Blazor
 
             if (value >= 0)
             {
-                return Chart.ValueScale.Scale(value + positiveSum);
+                return ValueScale.Scale(value + positiveSum);
             }
             else
             {
-                return Chart.ValueScale.Scale(negativeSum);
+                return ValueScale.Scale(negativeSum);
             }
         }
 
@@ -236,15 +240,15 @@ namespace Radzen.Blazor
 
             if (value >= 0)
             {
-                var ticks = Chart.ValueScale.Ticks(Chart.ValueAxis.TickDistance);
+                var ticks = ValueScale.Ticks(ValueAxis.TickDistance);
                 var sum = Math.Max(ticks.Start, positiveSum);
-                return Chart.ValueScale.Scale(sum);
+                return ValueScale.Scale(sum);
             }
             else
             {
-                var ticks = Chart.ValueScale.Ticks(Chart.ValueAxis.TickDistance);
+                var ticks = ValueScale.Ticks(ValueAxis.TickDistance);
                 var sum = Math.Max(ticks.Start, negativeSum + value);
-                return Chart.ValueScale.Scale(sum);
+                return ValueScale.Scale(sum);
             }
         }
 
@@ -323,7 +327,7 @@ namespace Radzen.Blazor
                 {
                     Position = new Point { X = TooltipX(data) + offsetX, Y = y + offsetY },
                     TextAnchor = "middle",
-                    Text = Chart.ValueAxis.Format(Chart.ValueScale, Value(data))
+                    Text = ValueAxis.Format(ValueScale, Value(data))
                 });
             }
 

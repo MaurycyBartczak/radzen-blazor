@@ -84,7 +84,7 @@ namespace Radzen.Blazor
             }
 
             var category = ComposeCategory(chart.CategoryScale);
-            var value = ComposeValue(chart.ValueScale);
+            var value = ComposeValue(GetValueScale());
             var sizeValues = Items.Select(item => Math.Abs(Size(item))).ToList();
             var minValue = sizeValues.Min();
             var maxValue = sizeValues.Max();
@@ -110,7 +110,7 @@ namespace Radzen.Blazor
             }
 
             var category = ComposeCategory(chart.CategoryScale);
-            var value = ComposeValue(chart.ValueScale);
+            var value = ComposeValue(GetValueScale());
             var sizeValues = Items.Select(item => Math.Abs(Size(item))).ToList();
             var minValue = sizeValues.Min();
             var maxValue = sizeValues.Max();

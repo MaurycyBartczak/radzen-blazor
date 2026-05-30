@@ -33,9 +33,10 @@
       {
         var x1 = category(Items.First()).ToInvariantString();
         var x2 = category(Items.Last()).ToInvariantString();
-        var valueTicks = chart.ValueScale.Ticks(chart.ValueAxis.TickDistance);
+        var axis = chart.GetValueAxis(this);
+        var valueTicks = valueScale.Ticks(axis.TickDistance);
         var start = Math.Max(0, valueTicks.Start);
-        var y = chart.ValueScale.Scale(start).ToInvariantString();
+        var y = valueScale.Scale(start).ToInvariantString();
         var style = $"clip-path: url(#{chart.ClipPath}); -webkit-clip-path: url(#{chart.ClipPath});";
         var path = pathGenerator.Path(data);
         var area = $"M {x1} {y} {path} L {x2} {y}";

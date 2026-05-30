@@ -13,8 +13,9 @@
         var chart = RequireChart();
         var category = ComposeCategory(categoryScale);
         var value = ComposeValue(valueScale);
-        var ticks = chart.ValueScale.Ticks(chart.ValueAxis.TickDistance);
-        var y0 = chart.ValueScale.Scale(Math.Max(0, ticks.Start));
+        var axis = chart.GetValueAxis(this);
+        var ticks = valueScale.Ticks(axis.TickDistance);
+        var y0 = valueScale.Scale(Math.Max(0, ticks.Start));
         var style = $"clip-path: url(#{chart.ClipPath}); -webkit-clip-path: url(#{chart.ClipPath});";
 
         var columnSeries = VisibleColumnSeries;

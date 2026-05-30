@@ -93,6 +93,11 @@ namespace Radzen.Blazor
         /// <value>The rendering order.</value>
         int RenderingOrder { get; set; }
         /// <summary>
+        /// Gets or sets the value axis the series is plotted against.
+        /// </summary>
+        /// <value>The value axis. Default is <see cref="AxisY.Primary" />.</value>
+        AxisY YAxis { get; set; }
+        /// <summary>
         /// Determines if the series contains the specified coordinates with a given tolerance.
         /// </summary>
         /// <param name="x">The x.</param>

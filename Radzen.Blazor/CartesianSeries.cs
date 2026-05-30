@@ -236,6 +236,32 @@ namespace Radzen.Blazor
         public int RenderingOrder { get; set; }
 
         /// <summary>
+        /// Gets or sets the value axis the series is plotted against.
+        /// Assign <see cref="AxisY.Secondary" /> to plot the series against a right value axis
+        /// configured with <see cref="ValueAxisPosition.Right" />. Ignored for bar series and
+        /// other charts that invert their axes.
+        /// </summary>
+        /// <value>The value axis. Default is <see cref="AxisY.Primary" />.</value>
+        [Parameter]
+        public AxisY YAxis { get; set; } = AxisY.Primary;
+
+        /// <summary>
+        /// Returns the value scale this series should be plotted against (primary or secondary).
+        /// </summary>
+        internal ScaleBase GetValueScale()
+        {
+            return RequireChart().GetValueScale(this);
+        }
+
+        /// <summary>
+        /// Returns the value axis this series should use for formatting and ticks (primary or secondary).
+        /// </summary>
+        internal RadzenValueAxis GetValueAxis()
+        {
+            return RequireChart().GetValueAxis(this);
+        }
+
+        /// <summary>
         /// Creates a getter function that returns a value from the specified data item. Uses <see cref="ValueProperty" />.
         /// </summary>
         /// <value>The value.</value>
@@ -741,9 +767,10 @@ namespace Radzen.Blazor
                 }
                 else
                 {
+                    var valueScale = GetValueScale();
                     var categoryAccessor = Category(chart.CategoryScale);
                     X = e => chart.CategoryScale.Scale(categoryAccessor(e));
-                    Y = e => chart.ValueScale.Scale(Value(e));
+                    Y = e => valueScale.Scale(Value(e));
                 }
 
                 var data = Items.ToList();
@@ -833,8 +860,9 @@ namespace Radzen.Blazor
         /// <returns>System.String.</returns>
         protected virtual string TooltipValue(TItem item)
         {
-            var chart = RequireChart();
-            return chart.ValueAxis.Format(chart.ValueScale, chart.ValueScale.Value(Value(item)));
+            var scale = GetValueScale();
+            var axis = GetValueAxis();
+            return axis.Format(scale, scale.Value(Value(item)));
         }
 
         /// <summary>
@@ -854,8 +882,7 @@ namespace Radzen.Blazor
         /// <param name="item">The item.</param>
         internal virtual double TooltipY(TItem item)
         {
-            var chart = RequireChart();
-            return chart.ValueScale.Scale(Value(item), true);
+            return GetValueScale().Scale(Value(item), true);
         }
 
         /// <inheritdoc />
@@ -879,7 +906,8 @@ namespace Radzen.Blazor
         /// <inheritdoc />
         public virtual IEnumerable<ChartDataLabel> GetDataLabels(double offsetX, double offsetY)
         {
-            var chart = RequireChart();
+            var scale = GetValueScale();
+            var axis = GetValueAxis();
             var list = new List<ChartDataLabel>();
 
             foreach (var d in Items)
@@ -888,7 +916,7 @@ namespace Radzen.Blazor
                 {
                     Position = new Point { X = TooltipX(d) + offsetX, Y = TooltipY(d) + offsetY },
                     TextAnchor = "middle",
-                    Text = chart.ValueAxis.Format(chart.ValueScale, Value(d))
+                    Text = axis.Format(scale, Value(d))
                 });
             }
 

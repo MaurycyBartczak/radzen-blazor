@@ -1,0 +1,60 @@
+<div class="rz-p-0 rz-p-md-12">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" class="rz-mb-4">
+        <RadzenSwitch @bind-Value="@sharedTooltip" Name="sharedTooltip" />
+        <RadzenLabel Text="Shared tooltip" Component="sharedTooltip" />
+    </RadzenStack>
+    <RadzenChart>
+        <RadzenChartTooltipOptions Shared="@sharedTooltip" />
+        <RadzenColumnSeries Data="@data"
+                            CategoryProperty="Month"
+                            ValueProperty="Revenue"
+                            Title="Revenue"
+                            YAxis="AxisY.Primary" />
+        <RadzenLineSeries Data="@data"
+                          CategoryProperty="Month"
+                          ValueProperty="ConversionRate"
+                          Title="Conversion rate"
+                          YAxis="AxisY.Secondary"
+                          Stroke="#dc2626"
+                          StrokeWidth="3">
+            <RadzenMarkers Visible="true" MarkerType="MarkerType.Circle" />
+        </RadzenLineSeries>
+        <RadzenCategoryAxis>
+            <RadzenAxisTitle Text="Month" />
+        </RadzenCategoryAxis>
+        <RadzenValueAxis Position="ValueAxisPosition.Left" Min="0" Max="10000" Step="2000" FormatString="{0:N0}">
+            <RadzenAxisTitle Text="Revenue" />
+            <RadzenGridLines Visible="true" />
+        </RadzenValueAxis>
+        <RadzenValueAxis Position="ValueAxisPosition.Right" Min="0" Max="100" Step="20" FormatString="{0}%">
+            <RadzenAxisTitle Text="Conversion rate" />
+        </RadzenValueAxis>
+    </RadzenChart>
+</div>
+
+@code {
+    bool sharedTooltip = true;
+
+    class DataItem
+    {
+        public string Month { get; set; } = "";
+        public double Revenue { get; set; }
+        public double ConversionRate { get; set; }
+    }
+
+    DataItem[] data =
+    {
+        new() { Month = "Jan", Revenue = 1200, ConversionRate = 12 },
+        new() { Month = "Feb", Revenue = 2800, ConversionRate = 18 },
+        new() { Month = "Mar", Revenue = 4300, ConversionRate = 26 },
+        new() { Month = "Apr", Revenue = 5200, ConversionRate = 34 },
+        new() { Month = "May", Revenue = 6900, ConversionRate = 45 },
+        new() { Month = "Jun", Revenue = 7600, ConversionRate = 53 },
+        new() { Month = "Jul", Revenue = 8400, ConversionRate = 61 },
+        new() { Month = "Aug", Revenue = 9100, ConversionRate = 70 },
+        new() { Month = "Sep", Revenue = 8700, ConversionRate = 66 },
+        new() { Month = "Oct", Revenue = 7800, ConversionRate = 57 },
+        new() { Month = "Nov", Revenue = 6400, ConversionRate = 48 },
+        new() { Month = "Dec", Revenue = 9600, ConversionRate = 82 }
+    };
+}

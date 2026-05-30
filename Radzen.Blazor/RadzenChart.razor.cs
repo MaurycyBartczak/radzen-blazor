@@ -119,13 +119,47 @@ namespace Radzen.Blazor
 
         internal ScaleBase CategoryScale { get; set; } = new LinearScale();
         internal ScaleBase ValueScale { get; set; } = new LinearScale();
+        internal ScaleBase SecondaryValueScale { get; set; } = new LinearScale();
         internal IList<IChartSeries> Series { get; set; } = new List<IChartSeries>();
         internal RadzenColumnOptions ColumnOptions { get; set; } = new RadzenColumnOptions();
         internal RadzenBarOptions BarOptions { get; set; } = new RadzenBarOptions();
         internal RadzenLegend Legend { get; set; } = new RadzenLegend();
         internal RadzenCategoryAxis CategoryAxis { get; set; } = new RadzenCategoryAxis();
         internal RadzenValueAxis ValueAxis { get; set; } = new RadzenValueAxis();
+        internal RadzenValueAxis SecondaryValueAxis { get; set; } = new RadzenValueAxis { Position = ValueAxisPosition.Right };
         internal RadzenChartTooltipOptions Tooltip { get; set; } = new RadzenChartTooltipOptions();
+
+        /// <summary>
+        /// Returns whether the chart has a secondary (right) value axis. This is the case when the
+        /// axes are not inverted and at least one visible series is assigned to <see cref="AxisY.Secondary" />.
+        /// </summary>
+        internal bool HasSecondaryValueAxis()
+        {
+            return !ShouldInvertAxes() &&
+                   Series.Any(series => series.Visible && series.YAxis == AxisY.Secondary);
+        }
+
+        /// <summary>
+        /// Returns the value scale the specified series should be plotted against.
+        /// </summary>
+        /// <param name="series">The series.</param>
+        internal ScaleBase GetValueScale(IChartSeries series)
+        {
+            return series.YAxis == AxisY.Secondary && HasSecondaryValueAxis()
+                ? SecondaryValueScale
+                : ValueScale;
+        }
+
+        /// <summary>
+        /// Returns the value axis the specified series should use.
+        /// </summary>
+        /// <param name="series">The series.</param>
+        internal RadzenValueAxis GetValueAxis(IChartSeries series)
+        {
+            return series.YAxis == AxisY.Secondary && HasSecondaryValueAxis()
+                ? SecondaryValueAxis
+                : ValueAxis;
+        }
         internal void AddSeries(IChartSeries series)
         {
             if (!Series.Contains(series))
@@ -167,16 +201,29 @@ namespace Radzen.Blazor
         }
 
         /// <summary>
+        /// Returns whether the series fills an area (column/bar) and therefore reports a hit anywhere
+        /// inside its shape. Such series are only used for hover/click selection when no point-based
+        /// series (line, scatter, bubble, area) is within tolerance, so that hovering a line marker
+        /// drawn on top of a column selects the marker rather than the column.
+        /// </summary>
+        private static bool IsAreaSeries(IChartSeries series)
+        {
+            return series is IChartColumnSeries || series is IChartBarSeries || series is IChartStackedColumnSeries;
+        }
+
+        /// <summary>
         /// Updates the scales based on the configuration.
         /// </summary>
         /// <returns></returns>
         protected virtual bool UpdateScales()
         {
             var valueScale = ValueScale;
+            var secondaryValueScale = SecondaryValueScale;
             var categoryScale = CategoryScale;
 
             CategoryScale = new LinearScale { Output = CategoryScale.Output };
             ValueScale = new LinearScale { Output = ValueScale.Output };
+            SecondaryValueScale = new LinearScale { Output = SecondaryValueScale.Output };
 
             var visibleSeries = Series.Where(series => series.Visible).ToList();
             var invisibleSeries = Series.Where(series => series.Visible == false).ToList();
@@ -186,10 +233,33 @@ namespace Radzen.Blazor
                 visibleSeries.Add(invisibleSeries.Last());
             }
 
+            var hasSecondaryValueAxis = HasSecondaryValueAxis();
+
             foreach (var series in visibleSeries)
             {
                 CategoryScale = series.TransformCategoryScale(CategoryScale);
-                ValueScale = series.TransformValueScale(ValueScale);
+            }
+
+            if (ShouldInvertAxes())
+            {
+                foreach (var series in visibleSeries)
+                {
+                    ValueScale = series.TransformValueScale(ValueScale);
+                }
+            }
+            else
+            {
+                foreach (var series in visibleSeries)
+                {
+                    if (series.YAxis == AxisY.Secondary && hasSecondaryValueAxis)
+                    {
+                        SecondaryValueScale = series.TransformValueScale(SecondaryValueScale);
+                    }
+                    else
+                    {
+                        ValueScale = series.TransformValueScale(ValueScale);
+                    }
+                }
             }
 
             AxisBase xAxis = CategoryAxis;
@@ -213,24 +283,25 @@ namespace Radzen.Blazor
                 CategoryScale.Round = false;
             }
 
-            ValueScale.Resize(yAxis.Min!, yAxis.Max!);
+            ApplyAxisOptions(ValueScale, yAxis);
 
-            if (yAxis.Step != null)
+            if (hasSecondaryValueAxis)
             {
-                ValueScale.Step = yAxis.Step;
-                ValueScale.Round = false;
+                ApplyAxisOptions(SecondaryValueScale, SecondaryValueAxis);
             }
 
             var legendSize = Legend.Measure(this);
-            var valueAxisSize = ValueAxis.Measure(this);
+            var valueAxisSize = ValueAxis.Measure(this, ValueScale);
+            var secondaryValueAxisSize = hasSecondaryValueAxis ? SecondaryValueAxis.Measure(this, SecondaryValueScale) : 0;
             var categoryAxisSize = CategoryAxis.Measure(this);
 
             if (!ShouldRenderAxes())
             {
-                valueAxisSize = categoryAxisSize = 0;
+                valueAxisSize = categoryAxisSize = secondaryValueAxisSize = 0;
             }
 
-            MarginTop = MarginRight = 32;
+            MarginTop = 32;
+            MarginRight = 32 + secondaryValueAxisSize;
             MarginLeft = valueAxisSize;
             MarginBottom = Math.Max(32, categoryAxisSize);
 
@@ -240,7 +311,7 @@ namespace Radzen.Blazor
                 {
                     if (Legend.Position == LegendPosition.Right)
                     {
-                        MarginRight = legendSize + 16;
+                        MarginRight = legendSize + 16 + secondaryValueAxisSize;
                     }
                     else
                     {
@@ -262,11 +333,22 @@ namespace Radzen.Blazor
 
             CategoryScale.Output = new ScaleRange { Start = MarginLeft, End = Width != null ? Width.Value - MarginRight : 0 };
             ValueScale.Output = new ScaleRange { Start = Height != null ? Height.Value - MarginBottom : 0, End = MarginTop };
+            SecondaryValueScale.Output = ValueScale.Output;
 
             ValueScale.Fit(ValueAxis.TickDistance);
             CategoryScale.Fit(CategoryAxis.TickDistance);
 
+            if (hasSecondaryValueAxis)
+            {
+                SecondaryValueScale.Fit(SecondaryValueAxis.TickDistance);
+            }
+
             var stateHasChanged = !ValueScale.IsEqualTo(valueScale);
+
+            if (!SecondaryValueScale.IsEqualTo(secondaryValueScale))
+            {
+                stateHasChanged = true;
+            }
 
             if (!CategoryScale.IsEqualTo(categoryScale))
             {
@@ -274,6 +356,17 @@ namespace Radzen.Blazor
             }
 
             return stateHasChanged;
+        }
+
+        private static void ApplyAxisOptions(ScaleBase scale, AxisBase axis)
+        {
+            scale.Resize(axis.Min!, axis.Max!);
+
+            if (axis.Step != null)
+            {
+                scale.Step = axis.Step;
+                scale.Round = false;
+            }
         }
 
         /// <summary>
@@ -300,6 +393,7 @@ namespace Radzen.Blazor
                 stateHasChanged = true;
 
                 ValueScale.Output = new ScaleRange { Start = Height.Value - MarginBottom, End = MarginTop };
+                SecondaryValueScale.Output = ValueScale.Output;
             }
 
             if (stateHasChanged)
@@ -310,6 +404,7 @@ namespace Radzen.Blazor
 
         RenderFragment? tooltip;
         object? tooltipData;
+        IChartSeries? tooltipSeries;
         double mouseX;
         double mouseY;
 
@@ -347,32 +442,10 @@ namespace Radzen.Blazor
         [JSInvokable]
         public async Task Click(double x, double y)
         {
-            IChartSeries? closestSeries = null;
-            object? closestSeriesData = null;
-            double closestSeriesDistanceSquared = ClickTolerance * ClickTolerance;
-
             var queryX = x - MarginLeft;
             var queryY = y - MarginTop;
 
-            foreach (var series in Series)
-            {
-                if (series.Visible)
-                {
-                    var (seriesData, seriesDataPoint) = series.DataAt(queryX, queryY);
-                    if (seriesData != null)
-                    {
-                        double xDelta = queryX - seriesDataPoint.X;
-                        double yDelta = queryY - seriesDataPoint.Y;
-                        double squaredDistance = xDelta * xDelta + yDelta * yDelta;
-                        if (squaredDistance < closestSeriesDistanceSquared)
-                        {
-                            closestSeries = series;
-                            closestSeriesData = seriesData;
-                            closestSeriesDistanceSquared = squaredDistance;
-                        }
-                    }
-                }
-            }
+            var (closestSeries, closestSeriesData) = FindClosestSeries(queryX, queryY, ClickTolerance);
 
             if (closestSeriesData != null && closestSeries != null)
             {
@@ -380,14 +453,66 @@ namespace Radzen.Blazor
             }
         }
 
+        /// <summary>
+        /// Finds the series whose data point is closest to the specified plot-area coordinates, within
+        /// <paramref name="tolerance" /> pixels. Point-based series (line, scatter, bubble, area) take
+        /// precedence over area-based series (column, bar) so that a marker drawn on top of a column is
+        /// selected when hovered or clicked; the column/bar is only selected when no point series is in range.
+        /// </summary>
+        internal (IChartSeries? series, object? data) FindClosestSeries(double queryX, double queryY, double tolerance)
+        {
+            IChartSeries? closestPointSeries = null;
+            object? closestPointData = null;
+            double closestPointDistanceSquared = tolerance * tolerance;
+
+            IChartSeries? closestAreaSeries = null;
+            object? closestAreaData = null;
+            double closestAreaDistanceSquared = tolerance * tolerance;
+
+            foreach (var series in Series.OrderBy(s => s.RenderingOrder).Reverse())
+            {
+                if (!series.Visible)
+                {
+                    continue;
+                }
+
+                var (seriesData, seriesDataPoint) = series.DataAt(queryX, queryY);
+                if (seriesData == null)
+                {
+                    continue;
+                }
+
+                var xDelta = queryX - seriesDataPoint.X;
+                var yDelta = queryY - seriesDataPoint.Y;
+                var squaredDistance = xDelta * xDelta + yDelta * yDelta;
+
+                if (IsAreaSeries(series))
+                {
+                    if (squaredDistance < closestAreaDistanceSquared)
+                    {
+                        closestAreaSeries = series;
+                        closestAreaData = seriesData;
+                        closestAreaDistanceSquared = squaredDistance;
+                    }
+                }
+                else if (squaredDistance < closestPointDistanceSquared)
+                {
+                    closestPointSeries = series;
+                    closestPointData = seriesData;
+                    closestPointDistanceSquared = squaredDistance;
+                }
+            }
+
+            return closestPointData != null
+                ? (closestPointSeries, closestPointData)
+                : (closestAreaSeries, closestAreaData);
+        }
+
         internal async Task DisplayTooltip()
         {
             if (Tooltip.Visible)
             {
                 var orderedSeries = Series.OrderBy(s => s.RenderingOrder).Reverse();
-                IChartSeries? closestSeries = null;
-                object? closestSeriesData = null;
-                double closestSeriesDistanceSquared = TooltipTolerance * TooltipTolerance;
 
                 var queryX = mouseX - MarginLeft;
                 var queryY = mouseY - MarginTop;
@@ -401,6 +526,7 @@ namespace Radzen.Blazor
                             if (overlay.Visible && overlay.Contains(queryX, queryY, TooltipTolerance))
                             {
                                 tooltipData = null;
+                                tooltipSeries = null;
                                 tooltip = overlay.RenderTooltip(queryX, queryY);
                                 var tooltipPosition = overlay.GetTooltipPosition(queryX, queryY);
                                 TooltipService?.OpenChartTooltip(Element, tooltipPosition.X + MarginLeft, tooltipPosition.Y + MarginTop, _ => tooltip, new ChartTooltipOptions
@@ -412,28 +538,21 @@ namespace Radzen.Blazor
                                 return;
                             }
                         }
-
-                        var (seriesData, seriesDataPoint) = series.DataAt(queryX, queryY);
-                        if (seriesData != null)
-                        {
-                            double xDelta = queryX - seriesDataPoint.X;
-                            double yDelta = queryY - seriesDataPoint.Y;
-                            double squaredDistance = xDelta * xDelta + yDelta * yDelta;
-                            if (squaredDistance < closestSeriesDistanceSquared)
-                            {
-                                closestSeries = series;
-                                closestSeriesData = seriesData;
-                                closestSeriesDistanceSquared = squaredDistance;
-                            }
-                        }
                     }
                 }
 
+                var (closestSeries, closestSeriesData) = FindClosestSeries(queryX, queryY, TooltipTolerance);
+
                 if (closestSeriesData != null && closestSeries != null)
                 {
-                    if (closestSeriesData != tooltipData)
+                    // Re-render when either the data item or the series changed. Comparing the series too
+                    // matters when several series share the same data objects (e.g. a column and a line
+                    // bound to the same items) - otherwise moving from a marker onto its column would not
+                    // switch the tooltip.
+                    if (closestSeriesData != tooltipData || !ReferenceEquals(closestSeries, tooltipSeries))
                     {
                         tooltipData = closestSeriesData;
+                        tooltipSeries = closestSeries;
                         tooltip = closestSeries.RenderTooltip(closestSeriesData);
                         var tooltipPosition = closestSeries.GetTooltipPosition(closestSeriesData);
                         TooltipService?.OpenChartTooltip(Element, tooltipPosition.X + MarginLeft, tooltipPosition.Y + MarginTop, _ => tooltip, new ChartTooltipOptions
@@ -449,6 +568,7 @@ namespace Radzen.Blazor
             if (tooltip != null)
             {
                 tooltipData = null;
+                tooltipSeries = null;
                 tooltip = null;
 
                 TooltipService?.Close();
@@ -482,6 +602,7 @@ namespace Radzen.Blazor
             if (IsJSRuntimeAvailable)
             {
                 tooltipData = data;
+                tooltipSeries = series;
                 tooltip = series.RenderTooltip(data);
                 var point = series.GetTooltipPosition(data);
                 TooltipService?.OpenChartTooltip(Element, point.X + MarginLeft, point.Y + MarginTop, _ => tooltip, new ChartTooltipOptions
@@ -530,6 +651,7 @@ namespace Radzen.Blazor
             ClipPath = $"clipPath{UniqueID}";
             CategoryAxis.Chart = this;
             ValueAxis.Chart = this;
+            SecondaryValueAxis.Chart = this;
 
             Initialize();
         }

@@ -5,7 +5,16 @@
   @ChildContent
 </CascadingValue>
 @code {
-    internal double Measure(RadzenChart chart)
+    /// <summary>
+    /// Gets or sets the side of the plot area on which the axis is rendered. Use
+    /// <see cref="ValueAxisPosition.Right" /> to configure the secondary value axis used by
+    /// series assigned to <see cref="AxisY.Secondary" />.
+    /// </summary>
+    /// <value>The axis position. Default is <see cref="ValueAxisPosition.Left" />.</value>
+    [Parameter]
+    public ValueAxisPosition Position { get; set; } = ValueAxisPosition.Left;
+
+    internal double Measure(RadzenChart chart, ScaleBase? scale = null)
     {
         if (chart.ShouldInvertAxes())
         {
@@ -17,7 +26,7 @@
         }
         else
         {
-            return AxisMeasurer.YAxis(chart.ValueScale, chart.ValueAxis, Title);
+            return AxisMeasurer.YAxis(scale ?? chart.ValueScale, this, Title);
         }
     }
 
@@ -25,13 +34,28 @@
     {
         get
         {
-            return Chart != null ? Measure(Chart) : 0;
+            if (Chart == null)
+            {
+                return 0;
+            }
+
+            var scale = Position == ValueAxisPosition.Right ? Chart.SecondaryValueScale : Chart.ValueScale;
+            return Measure(Chart, scale);
         }
     }
 
     protected override void Initialize()
     {
-        if (Chart != null)
+        if (Chart == null)
+        {
+            return;
+        }
+
+        if (Position == ValueAxisPosition.Right)
+        {
+            Chart.SecondaryValueAxis = this;
+        }
+        else
         {
             Chart.ValueAxis = this;
         }

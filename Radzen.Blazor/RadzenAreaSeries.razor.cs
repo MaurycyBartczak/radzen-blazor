@@ -92,13 +92,15 @@ namespace Radzen.Blazor
                 return false;
             }
 
+            var valueScale = GetValueScale();
+            var valueAxis = GetValueAxis();
             var category = ComposeCategory(chart.CategoryScale);
-            var value = ComposeValue(chart.ValueScale);
+            var value = ComposeValue(valueScale);
 
             var points = Items.Select(item => new Point { X = category(item), Y = value(item) }).ToArray();
 
-            var valueTicks = chart.ValueScale.Ticks(chart.ValueAxis.TickDistance);
-            var axisY = chart.ValueScale.Scale(Math.Max(0, valueTicks.Start));
+            var valueTicks = valueScale.Ticks(valueAxis.TickDistance);
+            var axisY = valueScale.Scale(Math.Max(0, valueTicks.Start));
 
             if (points.Length > 0)
             {

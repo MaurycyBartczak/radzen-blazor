@@ -18,15 +18,20 @@
                 <ClipPath />
                 @if(ShouldRenderAxes())
                 {
-                    <ValueAxis />
+                    <ValueAxis Axis="AxisY.Primary" />
+                    @if (HasSecondaryValueAxis())
+                    {
+                        <ValueAxis Axis="AxisY.Secondary" />
+                    }
                     <CategoryAxis />
                 }
                 @foreach (var series in Series.OrderBy(s => s.RenderingOrder))
                 {
                     @if (series.Visible)
                     {
-                        @series.Render(CategoryScale, ValueScale);
-                        @series.RenderOverlays(CategoryScale, ValueScale);
+                        var valueScale = GetValueScale(series);
+                        @series.Render(CategoryScale, valueScale);
+                        @series.RenderOverlays(CategoryScale, valueScale);
                     }
                 }
             </g>

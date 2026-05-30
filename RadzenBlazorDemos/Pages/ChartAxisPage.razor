@@ -46,3 +46,13 @@
 <RadzenExample ComponentName="Chart" Example="ChartAxisTitle">
     <ChartAxisTitle />
 </RadzenExample>
+
+<RadzenText Anchor="chart-axis#secondary-y-axis" TextStyle="TextStyle.H5" TagName="TagName.H2" class="rz-pt-12">
+    Secondary Y axis
+</RadzenText>
+<RadzenText TextStyle="TextStyle.Body1" class="rz-mb-8">
+    Plot a series against a second value axis by setting its <code>YAxis</code> to <code>AxisY.Secondary</code> and adding a right value axis with <code>Position="ValueAxisPosition.Right"</code>. Each axis scales independently, so series with very different ranges (for example revenue and a conversion rate) remain readable.
+</RadzenText>
+<RadzenExample ComponentName="Chart" Example="ChartAxisDualYAxis">
+    <ChartAxisDualYAxis />
+</RadzenExample>

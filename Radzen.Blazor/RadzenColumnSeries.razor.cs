@@ -210,9 +210,11 @@ namespace Radzen.Blazor
         {
             var chart = RequireChart();
             var category = ComposeCategory(chart.CategoryScale);
-            var value = ComposeValue(chart.ValueScale);
-            var ticks = chart.ValueScale.Ticks(chart.ValueAxis.TickDistance);
-            var y0 = chart.ValueScale.Scale(Math.Max(0, ticks.Start));
+            var valueScale = GetValueScale();
+            var valueAxis = GetValueAxis();
+            var value = ComposeValue(valueScale);
+            var ticks = valueScale.Ticks(valueAxis.TickDistance);
+            var y0 = valueScale.Scale(Math.Max(0, ticks.Start));
 
             var columnSeries = VisibleColumnSeries;
             var index = columnSeries.IndexOf(this);
@@ -244,7 +246,8 @@ namespace Radzen.Blazor
 
             int sign;
 
-            var chart = RequireChart();
+            var valueScale = GetValueScale();
+            var valueAxis = GetValueAxis();
             if (Data != null)
             {
                 foreach (var d in Data)
@@ -255,7 +258,7 @@ namespace Radzen.Blazor
                     {
                         Position = new Point() { X = TooltipX(d) + offsetX, Y = TooltipY(d) - offsetY - (16 * sign) },
                         TextAnchor = "middle",
-                        Text = chart.ValueAxis.Format(chart.ValueScale, Value(d))
+                        Text = valueAxis.Format(valueScale, Value(d))
                     });
                 }
             }
